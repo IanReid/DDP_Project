@@ -1,0 +1,93 @@
+---
+title: "Explore_mtcars app"
+author: "Ian Reid"
+date: "22/04/2021"
+output: 
+  ioslides_presentation: 
+    smaller: yes
+    widescreen: no
+    highlight: null
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+```{r load, echo=FALSE, message=FALSE, include=FALSE}
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+data("mtcars")
+MTcars <- select(mtcars, MilesPerGallon=mpg, Cylinders=cyl,Weight=wt,Shape=vs,
+                 Transmission=am, Gears=gear) %>%
+     mutate(Cylinders=factor(Cylinders), Gears=factor(Gears),
+            Shape=factor(Shape,labels=c("V","Straight")), 
+            Transmission=factor(Transmission,labels=c("Automatic","Manual")))
+```
+Why mtcars?
+-----------
+
+We have seen the mtcars dataset several times in various courses of the Data Science Specialization.
+
+Although it is small, only 32 rows, it has a complex structure with 11 variables more or less correlated with one another.
+
+Including or excluding certain variables from linear regression models can cause surprising changes in the coefficients of other variables.
+
+Despite repeated exposure I still didn't intuitively understand how the variables of mtcar related to each other.
+
+I designed the Explore\_mtcars app to help me explore these relationships visually.
+
+App structure
+-------------
+
+-   The backbone of the app is a linear regression of miles per gallon on weight, displayed in a plot.
+
+    -   Weight is the single variable that explains the largest part of the variation in miles per gallon by itself.
+
+-   The user can choose one of four variables to add to the regression model.
+
+    -   The choices are all discrete variables that can be converted to factors with 2-4 levels.
+
+    -   The plot updates to show the new regression. The data points and regression line segments are color-coded according to the factor levels.
+
+    -   The fraction of variation explained by the regression and the probability of the null hypothesis that the added variable has no effect are reported below the plot.
+-    The user can choose to show or hide car model name labels for each data point.
+
+Sample output with Cylinders selected
+-------
+```{r plot1, echo=FALSE, message=FALSE,comment=""}
+condition <- "Cylinders"
+mtc.t <- select(MTcars,MilesPerGallon, Weight, all_of(condition))
+fit <- lm(MilesPerGallon ~ ., data = mtc.t)
+mtc <- mutate(mtc.t, Prediction=fit$fitted.values)
+sumfit <- summary(fit)
+title <- paste("Regression: MilesPerGallon ~ Weight +", condition)
+coefs <- sumfit$coefficients
+p_vals <- coefs[3:length(coefs[,4]),4]
+p_value <- paste("Probability that", condition, "has no effect:",
+                 round(min(p_vals),4))
+p <- ggplot(mtc, aes(x=Weight, y=MilesPerGallon)) +
+     geom_point(aes(color=mtc[,3])) +
+     geom_line(aes(x=Weight,y=Prediction, color=mtc[,3]), size=2) + 
+                scale_colour_discrete(condition) + 
+                ggtitle(paste("Regression: MilesPerGallon ~ Weight +", condition))
+p
+R2 <- paste("R-squared:", round(sumfit$r.squared,4))
+```
+  
+`r R2`  
+`r p_value`
+
+Sample output with labels displayed
+-------
+```{r plot2, echo=FALSE, message=FALSE,comment=""}
+car_names  <- rownames(mtc)
+p <- p + geom_label_repel(aes(label=car_names, fill = mtc[,3]),
+                                          colour="white", size=3, 
+                                          show.legend = FALSE,
+                                          max.overlaps = 16)             
+
+p
+```
+  
+`r R2`  
+`r p_value`
